@@ -1,0 +1,9 @@
+graft src
+include README.md
+include pyproject.toml
+
+# Exclude large or local-only content from the source distribution
+recursive-exclude data *
+exclude uv.lock
+
+
