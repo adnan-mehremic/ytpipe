@@ -13,6 +13,8 @@ YouTube audio download and transcription pipeline.
 - **One-liner pipeline**: `ytpipe pipeline -s <url> --out data`
 - **Robust downloads** powered by `yt-dlp` with per-item info JSON and manifest
 - **Fast transcription** via `faster-whisper`, automatic device/precision selection
+- **Voice Activity Detection (VAD)**: Enabled by default for better quality and 20-30% speed improvement
+- **Parallel processing**: Multi-CPU and Multi-GPU support for batch transcription
 - **Clear structure**: `data/raw/audio/*.{m4a,info.json}`, transcripts in `data/transcripts`
 
 
@@ -121,7 +123,9 @@ ytpipe transcribe \
   [--beam-size 5] \
   [--vad/--no-vad] \
   [--language <code>] \
-  [--skip-existing/--no-skip-existing]
+  [--skip-existing/--no-skip-existing] \
+  [--workers <N>] \
+  [--batch-size <N>]
 ```
 
 - **--audio-dir**: Directory containing audio files to transcribe.
@@ -130,9 +134,11 @@ ytpipe transcribe \
 - **--device**: `auto` picks `cuda` when available; otherwise `cpu`.
 - **--compute-type**: `auto` uses `float16` on CUDA or `int8` on CPU.
 - **--beam-size**: Beam search size.
-- **--vad**: Enable voice activity detection filter.
+- **--vad/--no-vad**: Enable/disable voice activity detection. **Default: enabled** (recommended).
 - **--language**: Language hint (e.g., `en`); leave unset to auto-detect.
 - **--skip-existing**: Skip files with both `.json` and `.txt` already present.
+- **--workers, -w**: Number of parallel workers. Auto-detects optimal value if not specified.
+- **--batch-size, -b**: Number of files to process in parallel (per worker). Default: 1.
 
 Writes, per audio `<id>`:
 - `data/transcripts/<id>.json` (metadata + segments)
@@ -218,6 +224,15 @@ results = transcribe_directory(
 
 ## Notes and Tips
 
+- **Voice Activity Detection (VAD)** is enabled by default and provides:
+  - 20-30% faster transcription by skipping silence
+  - Fewer hallucinations in quiet segments
+  - Better timestamp accuracy
+  - See [VAD_OPTIMIZATION.md](VAD_OPTIMIZATION.md) for tuning parameters
+- **Parallel processing** for large batches:
+  - Use `--workers 4` for CPU multi-processing (4 cores)
+  - Use `--workers 2` with `--device cuda` for multi-GPU (2 GPUs)
+  - See [BATCH_PROCESSING.md](BATCH_PROCESSING.md) for details
 - For faster transcriptions, use an NVIDIA GPU (`--device cuda`) and pick an appropriate `--model`/`--compute-type` (e.g., `float16`).
 - On CPU-only systems, `--compute-type int8` (default via `auto`) significantly reduces memory usage.
 - You can limit the number of processed items with `--max` during `download`/`pipeline` runs.

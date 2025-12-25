@@ -30,6 +30,29 @@ htmlcov/
 
 # Project data (local artifacts)
 data/
+data_*/
+single_video/
+temp_audio/
+
+# Downloaded audio and transcripts (generated files)
+*.m4a
+*.mp3
+*.mp4
+*.webm
+*.wav
+*.flac
+*.mkv
+*.info.json
+manifest.jsonl
+downloaded.txt
+
+# HuggingFace cache (models are downloaded here)
+.cache/
+models/
+
+# Temporary test outputs
+temp*/
+test_*/
 
 # Local lockfiles to consider keeping tracked; comment out to ignore
 # uv.lock

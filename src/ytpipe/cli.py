@@ -80,6 +80,20 @@ def download(
     typer.echo(f"Processed {len(items)} item(s).")
 
 
+def _parse_output_formats(formats_str: str) -> set[str]:
+    """Parse comma-separated output formats string."""
+    from .config import SUPPORTED_OUTPUT_FORMATS
+    
+    formats = {f.strip().lower() for f in formats_str.split(",")}
+    invalid = formats - SUPPORTED_OUTPUT_FORMATS
+    if invalid:
+        raise typer.BadParameter(
+            f"Invalid format(s): {', '.join(invalid)}. "
+            f"Supported: {', '.join(sorted(SUPPORTED_OUTPUT_FORMATS))}"
+        )
+    return formats
+
+
 @app.command()
 def transcribe(
     audio_dir: Path = typer.Option(
@@ -125,14 +139,58 @@ def transcribe(
     skip_existing: bool = typer.Option(
         True,
         "--skip-existing/--no-skip-existing",
-        help="Skip audio files that already have JSON+TXT outputs.",
+        help="Skip audio files that already have all requested outputs.",
+    ),
+    output_format: str = typer.Option(
+        "json,txt",
+        "--output-format",
+        "-f",
+        help="Output formats (comma-separated): json, txt, srt, vtt. Example: --output-format srt,vtt",
+    ),
+    num_workers: Optional[int] = typer.Option(
+        None,
+        "--workers",
+        "-w",
+        help="Number of parallel workers. Auto-detects optimal value if not specified. Use 1 for sequential processing.",
+    ),
+    batch_size: int = typer.Option(
+        1,
+        "--batch-size",
+        "-b",
+        help="Number of files to process in parallel (per worker).",
     ),
 ) -> None:
     """
     Transcribe audio files in a directory using faster-whisper.
+
+    Supports parallel processing for improved performance:
+    - Sequential (default): --workers 1
+    - Parallel CPU: --workers 4 (or more) with --device cpu
+    - Multi-GPU: --workers 2 (or more) with --device cuda (auto-detects GPUs)
+
+    Examples:
+        # Sequential processing (default)
+        ytpipe transcribe --audio-dir data/audio
+
+        # Parallel CPU processing with 4 workers
+        ytpipe transcribe --audio-dir data/audio --device cpu --workers 4
+
+        # Multi-GPU processing (auto-detects available GPUs)
+        ytpipe transcribe --audio-dir data/audio --device cuda --workers 2
     """
     # Lazy import to avoid loading faster-whisper/ctranslate2 during pure download usage.
     from .transcribe import transcribe_directory
+
+    formats = _parse_output_formats(output_format)
+
+    # Auto-detect num_workers if not specified
+    if num_workers is None:
+        import multiprocessing as mp
+        # Default: use all cores - 1 for CPU, or 1 for CUDA
+        if device == "cpu":
+            num_workers = max(1, (mp.cpu_count() or 1) - 1)
+        else:
+            num_workers = 1
 
     cfg = TranscriptionConfig(
         model=model,
@@ -142,6 +200,9 @@ def transcribe(
         vad_filter=vad,
         language=language,
         skip_existing=skip_existing,
+        output_formats=formats,
+        num_workers=num_workers,
+        batch_size=batch_size,
     )
 
     results = transcribe_directory(audio_dir=audio_dir, out_dir=out, config=cfg)
@@ -217,14 +278,37 @@ def pipeline(
     skip_existing: bool = typer.Option(
         True,
         "--skip-existing/--no-skip-existing",
-        help="Skip audio files that already have JSON+TXT outputs.",
+        help="Skip audio files that already have all requested outputs.",
+    ),
+    output_format: str = typer.Option(
+        "json,txt",
+        "--output-format",
+        "-f",
+        help="Output formats (comma-separated): json, txt, srt, vtt. Example: --output-format srt,vtt",
+    ),
+    num_workers: Optional[int] = typer.Option(
+        None,
+        "--workers",
+        "-w",
+        help="Number of parallel workers for transcription. Auto-detects optimal value if not specified.",
+    ),
+    batch_size: int = typer.Option(
+        1,
+        "--batch-size",
+        "-b",
+        help="Number of files to process in parallel (per worker).",
     ),
 ) -> None:
     """
     Convenience command: download then transcribe in one go.
+
+    Supports parallel transcription for improved performance.
+    See 'ytpipe transcribe --help' for parallelization examples.
     """
     # Lazy import again
     from .transcribe import transcribe_directory
+
+    formats = _parse_output_formats(output_format)
 
     raw_dir = out / "raw"
     transcripts_dir = out / "transcripts"
@@ -240,6 +324,14 @@ def pipeline(
     items = download_sources(source, download_cfg)
     typer.echo(f"Downloaded/registered {len(items)} item(s).")
 
+    # Auto-detect num_workers if not specified
+    if num_workers is None:
+        import multiprocessing as mp
+        if device == "cpu":
+            num_workers = max(1, (mp.cpu_count() or 1) - 1)
+        else:
+            num_workers = 1
+
     audio_dir = raw_dir / "audio"
     trans_cfg = TranscriptionConfig(
         model=model,
@@ -249,6 +341,9 @@ def pipeline(
         vad_filter=vad,
         language=language,
         skip_existing=skip_existing,
+        output_formats=formats,
+        num_workers=num_workers,
+        batch_size=batch_size,
     )
 
     results = transcribe_directory(

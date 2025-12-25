@@ -45,3 +45,9 @@ dev = [
   "black>=24.0.0",
   "ruff>=0.5.0",
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+  # Ignore pkg_resources deprecation warning from ctranslate2 (faster-whisper dependency)
+  "ignore:pkg_resources is deprecated:UserWarning",
+]
