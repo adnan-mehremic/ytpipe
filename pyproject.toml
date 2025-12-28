@@ -24,7 +24,7 @@ classifiers = [
 
 dependencies = [
   "yt-dlp[default]>=2025.11.12",
-  "faster-whisper>=1.0.0",
+  "faster-whisper>=1.0.0,<2.0.0",
   "tqdm>=4.66.0",
   "typer>=0.12.0",
 ]

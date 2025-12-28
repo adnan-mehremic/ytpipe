@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -25,6 +27,9 @@ def main(
     """
     Common options shared by all commands.
     """
+    if not shutil.which("ffmpeg"):
+        typer.echo("CRITICAL: FFmpeg nije pronađen! Molimo instalirajte ga i dodajte u PATH.", err=True)
+        sys.exit(1)
     setup_logging(verbose=verbose)
 
 
