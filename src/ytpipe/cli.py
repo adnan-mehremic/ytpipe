@@ -76,9 +76,6 @@ def download(
         use_archive=not no_archive,
         show_progress=progress,
         ffmpeg_path=ffmpeg,
-        # extractor_args default is already set in DownloadConfig. If you want
-        # to disable the player_client=default workaround, you could pass
-        # extractor_args=None here.
     )
 
     items = download_sources(source, cfg)
@@ -183,15 +180,12 @@ def transcribe(
         # Multi-GPU processing (auto-detects available GPUs)
         ytpipe transcribe --audio-dir data/audio --device cuda --workers 2
     """
-    # Lazy import to avoid loading faster-whisper/ctranslate2 during pure download usage.
     from .transcribe import transcribe_directory
 
     formats = _parse_output_formats(output_format)
 
-    # Auto-detect num_workers if not specified
     if num_workers is None:
         import multiprocessing as mp
-        # Default: use all cores - 1 for CPU, or 1 for CUDA
         if device == "cpu":
             num_workers = max(1, (mp.cpu_count() or 1) - 1)
         else:
@@ -310,7 +304,6 @@ def pipeline(
     Supports parallel transcription for improved performance.
     See 'ytpipe transcribe --help' for parallelization examples.
     """
-    # Lazy import again
     from .transcribe import transcribe_directory
 
     formats = _parse_output_formats(output_format)
@@ -329,7 +322,6 @@ def pipeline(
     items = download_sources(source, download_cfg)
     typer.echo(f"Downloaded/registered {len(items)} item(s).")
 
-    # Auto-detect num_workers if not specified
     if num_workers is None:
         import multiprocessing as mp
         if device == "cpu":

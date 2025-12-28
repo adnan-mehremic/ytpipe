@@ -1,10 +1,3 @@
-"""
-Example: Voice Activity Detection (VAD) Configuration
-
-This example demonstrates different VAD configurations for various use cases.
-VAD significantly improves transcription quality and speed.
-"""
-
 from pathlib import Path
 
 from ytpipe.config import TranscriptionConfig, get_default_vad_parameters, validate_vad_parameters
@@ -12,16 +5,13 @@ from ytpipe.transcribe import transcribe_directory
 
 
 def example_default_vad():
-    """Example 1: Default VAD (recommended starting point)."""
     print("=" * 60)
     print("Example 1: Default VAD Configuration")
     print("=" * 60)
 
-    # VAD is enabled by default with optimal parameters
     config = TranscriptionConfig(
         model="medium",
-        vad_filter=True,  # Default: True
-        # vad_parameters not specified = use optimal defaults
+        vad_filter=True,
     )
 
     results = transcribe_directory(
@@ -35,7 +25,6 @@ def example_default_vad():
 
 
 def example_inspect_defaults():
-    """Example 2: Inspect default VAD parameters."""
     print("\n" + "=" * 60)
     print("Example 2: Inspect Default Parameters")
     print("=" * 60)
@@ -52,7 +41,6 @@ def example_inspect_defaults():
 
 
 def example_aggressive_vad():
-    """Example 3: Aggressive VAD for noisy environments."""
     print("\n" + "=" * 60)
     print("Example 3: Aggressive VAD (Noisy Audio)")
     print("=" * 60)
@@ -61,9 +49,9 @@ def example_aggressive_vad():
         model="medium",
         vad_filter=True,
         vad_parameters={
-            "threshold": 0.7,                # Very strict (only clear speech)
-            "min_speech_duration_ms": 500,   # Longer minimum (filter short noises)
-            "min_silence_duration_ms": 1000, # Shorter silence (aggressive splitting)
+            "threshold": 0.7,
+            "min_speech_duration_ms": 500,
+            "min_silence_duration_ms": 1000,
             "speech_pad_ms": 300,
         },
     )
@@ -79,7 +67,6 @@ def example_aggressive_vad():
 
 
 def example_sensitive_vad():
-    """Example 4: Sensitive VAD for quiet speech."""
     print("\n" + "=" * 60)
     print("Example 4: Sensitive VAD (Quiet Speech)")
     print("=" * 60)
@@ -88,10 +75,10 @@ def example_sensitive_vad():
         model="medium",
         vad_filter=True,
         vad_parameters={
-            "threshold": 0.3,                # Very sensitive (catch quiet speech)
-            "min_speech_duration_ms": 100,   # Catch short utterances
-            "min_silence_duration_ms": 3000, # Allow longer pauses
-            "speech_pad_ms": 500,            # Extra padding
+            "threshold": 0.3,
+            "min_speech_duration_ms": 100,
+            "min_silence_duration_ms": 3000,
+            "speech_pad_ms": 500,
         },
     )
 
@@ -106,7 +93,6 @@ def example_sensitive_vad():
 
 
 def example_podcast_optimized():
-    """Example 5: Podcast-optimized VAD."""
     print("\n" + "=" * 60)
     print("Example 5: Podcast-Optimized VAD")
     print("=" * 60)
@@ -115,11 +101,11 @@ def example_podcast_optimized():
         model="large-v3",
         vad_filter=True,
         vad_parameters={
-            "threshold": 0.5,                 # Balanced
+            "threshold": 0.5,
             "min_speech_duration_ms": 250,
-            "max_speech_duration_s": 120.0,   # Allow 2-minute monologues
-            "min_silence_duration_ms": 2000,  # Natural pauses
-            "speech_pad_ms": 500,             # Don't cut off words
+            "max_speech_duration_s": 120.0,
+            "min_silence_duration_ms": 2000,
+            "speech_pad_ms": 500,
         },
     )
 
@@ -134,14 +120,13 @@ def example_podcast_optimized():
 
 
 def example_disable_vad():
-    """Example 6: Disable VAD (transcribe everything including silence)."""
     print("\n" + "=" * 60)
     print("Example 6: Disable VAD")
     print("=" * 60)
 
     config = TranscriptionConfig(
         model="medium",
-        vad_filter=False,  # Disable VAD
+        vad_filter=False,
     )
 
     results = transcribe_directory(
@@ -156,18 +141,15 @@ def example_disable_vad():
 
 
 def example_validate_custom_params():
-    """Example 7: Validate custom VAD parameters."""
     print("\n" + "=" * 60)
     print("Example 7: Validate Custom Parameters")
     print("=" * 60)
 
-    # Partial parameters (rest filled with defaults)
     custom_params = {
         "threshold": 0.6,
         "min_speech_duration_ms": 300,
     }
 
-    # Validate and fill in defaults
     validated = validate_vad_parameters(custom_params)
 
     print("\nCustom parameters:")
@@ -180,23 +162,22 @@ def example_validate_custom_params():
 
 
 def example_fast_transcription():
-    """Example 8: Fast transcription (speed over accuracy)."""
     print("\n" + "=" * 60)
     print("Example 8: Fast Transcription Mode")
     print("=" * 60)
 
     config = TranscriptionConfig(
-        model="small",  # Smaller model = faster
+        model="small",
         device="cuda",
         compute_type="float16",
         vad_filter=True,
         vad_parameters={
-            "threshold": 0.6,                # Skip marginal speech
-            "min_speech_duration_ms": 500,   # Ignore very short segments
-            "min_silence_duration_ms": 1500, # Faster segmentation
-            "speech_pad_ms": 200,            # Minimal padding
+            "threshold": 0.6,
+            "min_speech_duration_ms": 500,
+            "min_silence_duration_ms": 1500,
+            "speech_pad_ms": 200,
         },
-        num_workers=2,  # Parallel processing
+        num_workers=2,
     )
 
     results = transcribe_directory(
@@ -210,7 +191,6 @@ def example_fast_transcription():
 
 
 def example_vad_with_multi_gpu():
-    """Example 9: Combine VAD with multi-GPU parallelization."""
     print("\n" + "=" * 60)
     print("Example 9: VAD + Multi-GPU (Maximum Performance)")
     print("=" * 60)
@@ -219,8 +199,8 @@ def example_vad_with_multi_gpu():
         model="large-v3",
         device="cuda",
         compute_type="float16",
-        num_workers=2,          # Multi-GPU parallelization
-        vad_filter=True,        # VAD for quality + speed
+        num_workers=2,
+        vad_filter=True,
         vad_parameters={
             "threshold": 0.5,
             "min_speech_duration_ms": 250,
@@ -240,56 +220,34 @@ def example_vad_with_multi_gpu():
 
 
 def example_error_handling():
-    """Example 10: VAD parameter validation errors."""
     print("\n" + "=" * 60)
     print("Example 10: Parameter Validation Errors")
     print("=" * 60)
 
-    # Example 1: Invalid threshold
     try:
         validate_vad_parameters({"threshold": 1.5})
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
-    # Example 2: Invalid window size (not power of 2)
     try:
         validate_vad_parameters({"window_size_samples": 1000})
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
-    # Example 3: Negative duration
     try:
         validate_vad_parameters({"min_speech_duration_ms": -100})
     except ValueError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
-    print("\n✅ All validation errors caught correctly")
+    print("\nAll validation errors caught correctly")
 
 
 def main():
-    """Run selected examples."""
     print("\n" + "=" * 60)
     print("ytpipe Voice Activity Detection (VAD) Examples")
     print("=" * 60)
 
-    # Comment/uncomment examples you want to run
-
-    # Basics
-    # example_default_vad()
     example_inspect_defaults()
-
-    # Presets for different use cases
-    # example_aggressive_vad()
-    # example_sensitive_vad()
-    # example_podcast_optimized()
-    # example_fast_transcription()
-
-    # Advanced
-    # example_disable_vad()
-    # example_validate_custom_params()
-    # example_vad_with_multi_gpu()
-
-    # Error handling
     example_error_handling()
 
     print("\n" + "=" * 60)

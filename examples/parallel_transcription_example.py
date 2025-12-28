@@ -1,10 +1,3 @@
-"""
-Example: Using Parallel Transcription
-
-This example demonstrates how to use ytpipe's batch processing capabilities
-for faster transcription using parallel CPU workers or multiple GPUs.
-"""
-
 from pathlib import Path
 
 from ytpipe.config import TranscriptionConfig
@@ -12,7 +5,6 @@ from ytpipe.transcribe import transcribe_directory
 
 
 def example_sequential():
-    """Example 1: Sequential processing (default, safest)."""
     print("=" * 60)
     print("Example 1: Sequential Processing")
     print("=" * 60)
@@ -20,7 +12,7 @@ def example_sequential():
     config = TranscriptionConfig(
         model="medium",
         device="auto",
-        num_workers=1,  # Sequential processing
+        num_workers=1,
         output_formats={"json", "txt", "srt"},
     )
 
@@ -34,16 +26,15 @@ def example_sequential():
 
 
 def example_parallel_cpu():
-    """Example 2: Parallel CPU processing for faster transcription."""
     print("\n" + "=" * 60)
     print("Example 2: Parallel CPU Processing (4 workers)")
     print("=" * 60)
 
     config = TranscriptionConfig(
-        model="small",  # Use smaller model for faster CPU processing
+        model="small",
         device="cpu",
-        compute_type="int8",  # Optimized for CPU
-        num_workers=4,  # 4 parallel workers
+        compute_type="int8",
+        num_workers=4,
         output_formats={"json", "txt", "srt"},
     )
 
@@ -58,17 +49,16 @@ def example_parallel_cpu():
 
 
 def example_multi_gpu():
-    """Example 3: Multi-GPU processing for maximum throughput."""
     print("\n" + "=" * 60)
     print("Example 3: Multi-GPU Processing")
     print("=" * 60)
 
     config = TranscriptionConfig(
-        model="large-v3",  # Large model benefits from GPU
+        model="large-v3",
         device="cuda",
-        compute_type="float16",  # Optimized for GPU
-        num_workers=2,  # Use 2 GPUs
-        vad_filter=True,  # Enable VAD for better quality
+        compute_type="float16",
+        num_workers=2,
+        vad_filter=True,
         output_formats={"json", "txt", "srt", "vtt"},
     )
 
@@ -83,18 +73,14 @@ def example_multi_gpu():
 
 
 def example_auto_optimization():
-    """Example 4: Auto-optimization - let ytpipe choose the best strategy."""
     print("\n" + "=" * 60)
     print("Example 4: Auto-Optimization")
     print("=" * 60)
 
-    # Auto-detect device (CUDA if available, else CPU)
-    # Auto-detect optimal worker count
     config = TranscriptionConfig(
         model="medium",
-        device="auto",  # Auto-detect best device
-        compute_type="auto",  # Auto-select compute type
-        # num_workers not specified = auto-detect optimal count
+        device="auto",
+        compute_type="auto",
         output_formats={"json", "srt"},
     )
 
@@ -109,7 +95,6 @@ def example_auto_optimization():
 
 
 def example_custom_configuration():
-    """Example 5: Custom configuration for specific use case."""
     print("\n" + "=" * 60)
     print("Example 5: Custom Configuration")
     print("=" * 60)
@@ -118,10 +103,10 @@ def example_custom_configuration():
         model="large-v3",
         device="cuda",
         compute_type="float16",
-        beam_size=5,  # Higher beam size for better quality
-        vad_filter=True,  # Filter out silence
-        language="en",  # English hint for better accuracy
-        skip_existing=True,  # Skip already transcribed files
+        beam_size=5,
+        vad_filter=True,
+        language="en",
+        skip_existing=True,
         num_workers=2,
         output_formats={"json", "srt", "vtt"},
     )
@@ -137,28 +122,11 @@ def example_custom_configuration():
 
 
 def main():
-    """Run all examples."""
     print("\n" + "=" * 60)
     print("ytpipe Parallel Transcription Examples")
     print("=" * 60)
 
-    # Run examples based on what makes sense for your system
-    # Comment out examples you don't want to run
-
-    # Example 1: Sequential (always works)
     example_sequential()
-
-    # Example 2: Parallel CPU (good for multi-core systems)
-    # example_parallel_cpu()
-
-    # Example 3: Multi-GPU (requires 2+ GPUs)
-    # example_multi_gpu()
-
-    # Example 4: Auto-optimization (recommended)
-    # example_auto_optimization()
-
-    # Example 5: Custom configuration
-    # example_custom_configuration()
 
     print("\n" + "=" * 60)
     print("Examples completed!")

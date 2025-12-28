@@ -11,7 +11,6 @@ from ytpipe import (
 def main() -> None:
     setup_logging(verbose=True)
 
-    # 1) Download at most N videos from a playlist
     playlist_url = "https://www.youtube.com/playlist?list=PL123..."
     raw_dir = Path("data/raw")
 
@@ -29,7 +28,6 @@ def main() -> None:
 
     print(f"Downloaded/registered {len(downloaded_items)} item(s).")
 
-    # 2) Transcribe them
     audio_dir = raw_dir / "audio"
     transcripts_dir = Path("data/transcripts")
 
@@ -49,7 +47,6 @@ def main() -> None:
         config=tr_config,
     )
 
-    # 3) Print paths of transcript JSON files
     for r in results:
         print(f"Transcript JSON: {r.json_path}")
 

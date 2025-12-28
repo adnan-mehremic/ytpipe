@@ -57,10 +57,8 @@ def _flatten_entries(info: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
     if entries:
         for child in entries:
             if child:
-                # Recurse into nested playlists/channels
                 yield from _flatten_entries(child)
     else:
-        # Leaf entry (typically a single video)
         yield info
 
 
@@ -112,7 +110,6 @@ class TqdmHook:
             )
             downloaded = d.get("downloaded_bytes", 0)
 
-            # (re)create bar if needed
             if total and (self.pbar is None or self.total != total):
                 if self.pbar:
                     self.pbar.close()
@@ -121,7 +118,6 @@ class TqdmHook:
                     total=self.total, unit="B", unit_scale=True, desc=self.desc
                 )
 
-            # update bar
             if self.pbar:
                 self.pbar.n = int(downloaded)
                 self.pbar.refresh()
@@ -171,7 +167,6 @@ def download_sources(
     archive_path = config.out_dir / config.archive_filename
     manifest_path = config.out_dir / config.manifest_filename
 
-    # Base yt-dlp options; derived from your original script.
     ydl_opts: Dict[str, Any] = {
         "format": "bestaudio/best",
         "outtmpl": str(audio_dir / "%(id)s.%(ext)s"),
@@ -198,11 +193,8 @@ def download_sources(
     if config.max_videos is not None:
         ydl_opts["playlist_items"] = f"1-{config.max_videos}"
     if config.extractor_args:
-        # Workaround for JS runtime warning / SABR issues:
-        # --extractor-args "youtube:player_client=default"
         ydl_opts["extractor_args"] = config.extractor_args
 
-    # User-specified overrides
     ydl_opts.update(config.ydl_extra_opts)
 
     hook = TqdmHook()
@@ -212,7 +204,6 @@ def download_sources(
     items: list[DownloadedItem] = []
     total = 0
 
-    # Manifest file handle (optional)
     manifest_file = None
     if config.write_manifest:
         manifest_file = manifest_path.open("a", encoding="utf-8")

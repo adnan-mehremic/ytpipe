@@ -42,11 +42,6 @@ class TranscriptionResult:
     segments: list[Segment]
 
 
-# =============================================================================
-# SUBTITLE FORMAT FUNCTIONS
-# =============================================================================
-
-
 def _format_timestamp_srt(seconds: float) -> str:
     """
     Format seconds as SRT timestamp: HH:MM:SS,mmm
@@ -103,7 +98,7 @@ def segments_to_srt(segments: list[Segment]) -> str:
         lines.append(f"{i}")
         lines.append(f"{start_ts} --> {end_ts}")
         lines.append(seg.text)
-        lines.append("")  # Blank line between entries
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -136,7 +131,7 @@ def segments_to_vtt(segments: list[Segment]) -> str:
         end_ts = _format_timestamp_vtt(seg.end)
         lines.append(f"{start_ts} --> {end_ts}")
         lines.append(seg.text)
-        lines.append("")  # Blank line between entries
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -238,14 +233,12 @@ def transcribe_file(
     """
     stem = audio_path.stem
     formats = config.output_formats
-    
-    # Build output paths for requested formats
+
     json_path = out_dir / f"{stem}.json" if "json" in formats else None
     txt_path = out_dir / f"{stem}.txt" if "txt" in formats else None
     srt_path = out_dir / f"{stem}.srt" if "srt" in formats else None
     vtt_path = out_dir / f"{stem}.vtt" if "vtt" in formats else None
 
-    # Check skip_existing: skip if ALL requested outputs exist
     if config.skip_existing:
         paths_to_check = [p for p in [json_path, txt_path, srt_path, vtt_path] if p]
         if paths_to_check and all(p.exists() for p in paths_to_check):
@@ -254,7 +247,6 @@ def transcribe_file(
 
     logger.info("Transcribing: %s", audio_path.name)
 
-    # Prepare VAD parameters if VAD is enabled
     vad_parameters = None
     if config.vad_filter:
         from .config import validate_vad_parameters
@@ -289,7 +281,6 @@ def transcribe_file(
     out_dir.mkdir(parents=True, exist_ok=True)
     written_files: list[str] = []
 
-    # Write JSON
     if json_path:
         meta: Dict[str, Any] = {
             "video_id": stem,
@@ -305,20 +296,17 @@ def transcribe_file(
             json.dump(meta, f, ensure_ascii=False)
         written_files.append(json_path.name)
 
-    # Write TXT
     if txt_path:
         with txt_path.open("w", encoding="utf-8") as f:
             f.write("\n".join(texts) + "\n")
         written_files.append(txt_path.name)
 
-    # Write SRT
     if srt_path:
         srt_content = segments_to_srt(segments)
         with srt_path.open("w", encoding="utf-8") as f:
             f.write(srt_content)
         written_files.append(srt_path.name)
 
-    # Write VTT
     if vtt_path:
         vtt_content = segments_to_vtt(segments)
         with vtt_path.open("w", encoding="utf-8") as f:
@@ -386,17 +374,14 @@ def transcribe_directory(
     batch_processing.TranscriptionStrategy : Base class for processing strategies
     batch_processing.TranscriptionStrategyFactory : Factory for strategy selection
     """
-    # Lazy import batch processing module
     from .batch_processing import TranscriptionStrategyFactory
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve device and compute type
     device, compute_type = resolve_device_and_compute(
         config.device, config.compute_type
     )
 
-    # Find all audio files
     audio_files = iter_audio_files(audio_dir, config.audio_extensions)
     if not audio_files:
         logger.warning("No audio files found in %s", audio_dir)
@@ -410,11 +395,9 @@ def transcribe_directory(
         compute_type,
     )
 
-    # Select and create appropriate processing strategy
     strategy = TranscriptionStrategyFactory.create_strategy(config, device)
     logger.info("Using strategy: %s", strategy.get_strategy_name())
 
-    # Execute strategy
     results = strategy.process_files(
         audio_files=audio_files,
         out_dir=out_dir,

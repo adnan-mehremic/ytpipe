@@ -1,15 +1,3 @@
-"""
-Batch processing and parallelization strategies for transcription.
-
-This module provides a clean, extensible architecture for processing audio files
-in parallel using different strategies (sequential, multi-process, multi-GPU).
-
-Design Patterns:
-    - Strategy Pattern: Different processing strategies (Sequential, Parallel, MultiGPU)
-    - Factory Pattern: Strategy selection based on configuration
-    - Template Method: Common processing workflow with strategy-specific execution
-"""
-
 from __future__ import annotations
 
 import logging
@@ -32,11 +20,6 @@ if TYPE_CHECKING:
     from .transcribe import TranscriptionResult
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# GPU DETECTION AND UTILITIES
-# =============================================================================
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,18 +117,10 @@ def get_optimal_worker_count(device: str, num_workers: int | None = None) -> int
         return num_workers
 
     if device == "cpu":
-        # Use CPU count - 1 to leave one core free
         cpu_count = mp.cpu_count() or 1
         return max(1, cpu_count - 1)
 
-    # For CUDA, default to 1 worker (GPU-bound)
-    # Multi-GPU case is handled separately
     return 1
-
-
-# =============================================================================
-# BATCH PROCESSING STRATEGIES (Strategy Pattern)
-# =============================================================================
 
 
 class TranscriptionStrategy(ABC):
@@ -268,7 +243,6 @@ class SequentialStrategy(TranscriptionStrategy):
         return results
 
 
-# Module-level worker function for CPU parallelization (must be picklable)
 def _cpu_worker(
     audio_path: Path,
     out_dir: Path,
@@ -276,42 +250,16 @@ def _cpu_worker(
     compute_type: str,
     config_dict: dict,
 ) -> TranscriptionResult | None:
-    """
-    Worker function for CPU parallel processing.
-
-    Must be module-level for pickle serialization (required by multiprocessing).
-
-    Parameters
-    ----------
-    audio_path : Path
-        Path to audio file to transcribe.
-    out_dir : Path
-        Output directory for transcription results.
-    model_name : str
-        Whisper model name.
-    compute_type : str
-        Compute type for model.
-    config_dict : dict
-        Serialized TranscriptionConfig as dict.
-
-    Returns
-    -------
-    TranscriptionResult | None
-        Transcription result or None if failed.
-    """
     try:
         from faster_whisper import WhisperModel
 
         from .config import TranscriptionConfig
         from .transcribe import transcribe_file
 
-        # Reconstruct config from dict
         config = TranscriptionConfig(**config_dict)
 
-        # Load model in this worker process
         model = WhisperModel(model_name, device="cpu", compute_type=compute_type)
 
-        # Transcribe
         result = transcribe_file(
             model=model,
             audio_path=audio_path,
@@ -359,7 +307,6 @@ class ParallelCPUStrategy(TranscriptionStrategy):
             "Using %d worker processes for CPU parallelization", num_workers
         )
 
-        # Serialize config for pickling
         config_dict = {
             "model": self.config.model,
             "device": self.config.device,
@@ -379,7 +326,6 @@ class ParallelCPUStrategy(TranscriptionStrategy):
         results: list[TranscriptionResult] = []
 
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            # Submit all tasks
             futures = {
                 executor.submit(
                     _cpu_worker,
@@ -392,7 +338,6 @@ class ParallelCPUStrategy(TranscriptionStrategy):
                 for audio_file in audio_files
             }
 
-            # Collect results with progress bar
             with tqdm(total=len(audio_files), desc="Transcribing", unit="file") as pbar:
                 for future in as_completed(futures):
                     try:
@@ -449,14 +394,12 @@ class MultiGPUStrategy(TranscriptionStrategy):
 
         logger.info("Distributing work across %d GPU(s)", len(gpus))
 
-        # Pre-load models for each GPU (thread-safe, done in main thread)
         models_per_gpu: dict[int, WhisperModel] = {}
 
         for gpu in gpus:
             logger.info(
                 "Loading model on GPU %d (%s)", gpu.device_id, gpu.name
             )
-            # Use CUDA_VISIBLE_DEVICES to isolate each model to specific GPU
             original_visible = os.environ.get("CUDA_VISIBLE_DEVICES")
             try:
                 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu.device_id)
@@ -472,7 +415,6 @@ class MultiGPUStrategy(TranscriptionStrategy):
                 else:
                     os.environ.pop("CUDA_VISIBLE_DEVICES", None)
 
-        # Distribute files across GPUs (round-robin)
         files_per_gpu: dict[int, list[Path]] = {gpu.device_id: [] for gpu in gpus}
 
         for i, audio_file in enumerate(audio_files):
@@ -485,9 +427,7 @@ class MultiGPUStrategy(TranscriptionStrategy):
         )
 
         def worker_fn(gpu_id: int, audio_path: Path) -> TranscriptionResult | None:
-            """Worker function for specific GPU."""
             try:
-                # Set GPU for this thread
                 original_visible = os.environ.get("CUDA_VISIBLE_DEVICES")
                 try:
                     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -517,17 +457,13 @@ class MultiGPUStrategy(TranscriptionStrategy):
 
         results: list[TranscriptionResult] = []
 
-        # Use ThreadPoolExecutor (not ProcessPoolExecutor)
-        # GPU operations release GIL, so threads are efficient
         with ThreadPoolExecutor(max_workers=len(gpus)) as executor:
-            # Submit all tasks
             futures = []
             for gpu_id, gpu_files in files_per_gpu.items():
                 for audio_file in gpu_files:
                     future = executor.submit(worker_fn, gpu_id, audio_file)
                     futures.append(future)
 
-            # Collect results with progress bar
             with tqdm(total=len(audio_files), desc="Transcribing", unit="file") as pbar:
                 for future in as_completed(futures):
                     try:
@@ -540,11 +476,6 @@ class MultiGPUStrategy(TranscriptionStrategy):
                         pbar.update(1)
 
         return results
-
-
-# =============================================================================
-# STRATEGY FACTORY (Factory Pattern)
-# =============================================================================
 
 
 class TranscriptionStrategyFactory:
@@ -585,7 +516,6 @@ class TranscriptionStrategyFactory:
         >>> isinstance(strategy, ParallelCPUStrategy)
         True
         """
-        # Multi-GPU strategy: if CUDA and multiple GPUs available
         if device == "cuda" and config.num_workers > 1:
             gpus = detect_available_gpus()
             if len(gpus) > 1:
@@ -594,11 +524,9 @@ class TranscriptionStrategyFactory:
                 )
                 return MultiGPUStrategy(config)
 
-        # Parallel CPU strategy: if CPU and multiple workers requested
         if device == "cpu" and config.num_workers > 1:
             logger.info("Selected Parallel CPU strategy")
             return ParallelCPUStrategy(config)
 
-        # Default: Sequential strategy
         logger.info("Selected Sequential strategy")
         return SequentialStrategy(config)
