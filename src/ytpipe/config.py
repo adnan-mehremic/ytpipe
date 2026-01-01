@@ -47,7 +47,7 @@ class TranscriptionConfig:
     """
 
     model: str = "medium"
-    device: str = "auto"
+    device: str = "cpu"
     compute_type: str = "auto"
     beam_size: int = 5
     vad_filter: bool = True

@@ -1,185 +1,119 @@
-## ytpipe
+# ytpipe
+
+[![PyPI version](https://badge.fury.io/py/ytpipe.svg)](https://badge.fury.io/py/ytpipe)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 YouTube audio download and transcription pipeline.
 
-- **Download** audio from YouTube (videos, playlists, channels) via `yt-dlp`
-- **Transcribe** locally using `faster-whisper` (CPU or NVIDIA GPU)
-- **CLI-first** with clean Python API
-- Sensible outputs: audio + info JSON, a line-delimited manifest, and transcript JSON/TXT
-
+**ytpipe** downloads audio from YouTube (videos, playlists, channels) and transcribes locally using [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Designed for practical, repeatable ingestion of YouTube content into clean on-disk datasets.
 
 ## Features
 
-- **One-liner pipeline**: `ytpipe pipeline -s <url> --out data`
-- **Robust downloads** powered by `yt-dlp` with per-item info JSON and manifest
-- **Fast transcription** via `faster-whisper`, automatic device/precision selection
-- **Voice Activity Detection (VAD)**: Enabled by default for better quality and 20-30% speed improvement
-- **Parallel processing**: Multi-CPU and Multi-GPU support for batch transcription
-- **Clear structure**: `data/raw/audio/*.{m4a,info.json}`, transcripts in `data/transcripts`
-
+- **One-command pipeline**: download + transcribe in one step
+- **Robust downloads** powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) (videos, playlists, channels)
+- **Fast local transcription** via faster-whisper (CPU or NVIDIA GPU)
+- **VAD enabled by default** for better quality and faster processing
+- **Multiple output formats**: JSON, TXT, SRT, VTT subtitles
+- **Parallel processing** for batch transcription (multi-CPU and multi-GPU)
 
 ## Requirements
 
 - Python >= 3.10
-- `ffmpeg` available (in `PATH` or provided via `--ffmpeg`)
-- Optional: NVIDIA GPU with proper drivers for CUDA acceleration
-
+- FFmpeg (must be in PATH or provided via `--ffmpeg`)
+- Optional: NVIDIA GPU + CUDA for acceleration
 
 ## Installation
 
-Install from the project root (editable dev install):
+### CPU only (default)
 
 ```bash
-python -m pip install -e .
+pip install ytpipe
 ```
 
-If you use a virtual environment:
+### GPU support (NVIDIA CUDA)
 
 ```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
-python -m pip install -e .
+pip install "ytpipe[gpu]"
 ```
 
+## Quick Start
 
-## Quickstart
-
-- Download audio to `data/raw/audio`:
+### Full pipeline (download + transcribe)
 
 ```bash
-ytpipe download -s "https://www.youtube.com/watch?v=..." --out data/raw
+# CPU (default)
+ytpipe pipeline -s "https://www.youtube.com/watch?v=VIDEO_ID" --out data
+
+# GPU accelerated
+ytpipe pipeline -s "https://www.youtube.com/watch?v=VIDEO_ID" --out data --device cuda
 ```
 
-- Transcribe everything from `data/raw/audio` to `data/transcripts`:
+### Download only
 
 ```bash
-ytpipe transcribe --audio-dir data/raw/audio --out data/transcripts --model medium
+ytpipe download -s "https://www.youtube.com/watch?v=VIDEO_ID" --out data/raw
 ```
 
-- Run both steps in sequence:
+### Download from channel (with limit)
 
 ```bash
-ytpipe pipeline -s "https://www.youtube.com/watch?v=..." --out data
+# Download 5 videos from a channel
+ytpipe pipeline -s "https://www.youtube.com/@ChannelName" --out data --max 5
+
+# Or download only (without transcription)
+ytpipe download -s "https://www.youtube.com/@ChannelName" --out data/raw --max 10
 ```
 
-Resulting layout (example):
+### Transcribe only
+
+```bash
+ytpipe transcribe --audio-dir data/raw/audio --out data/transcripts
+```
+
+## Output Structure
 
 ```
 data/
   raw/
     audio/
-      2FkMfgNNlZ8.m4a
-      2FkMfgNNlZ8.info.json
-      ...
+      VIDEO_ID.m4a
+      VIDEO_ID.info.json
     manifest.jsonl
     downloaded.txt
   transcripts/
-    2FkMfgNNlZ8.json
-    2FkMfgNNlZ8.txt
+    VIDEO_ID.json
+    VIDEO_ID.txt
 ```
 
+## CLI Options
 
-## CLI Reference
+### Common options
 
-### download
+| Option | Description |
+|--------|-------------|
+| `--model` | Whisper model: `small`, `medium`, `large-v3` (default: `medium`) |
+| `--device` | Device: `cpu`, `cuda`, `auto` (default: `cpu`) |
+| `--language` | Language hint (e.g., `en`). Auto-detects if not set |
+| `--output-format` | Output formats: `json,txt,srt,vtt` (default: `json,txt`) |
+
+### GPU acceleration
 
 ```bash
-ytpipe download \
-  --source <url> [-s <url> ...] \
-  --out data/raw \
-  [--max <N>] \
-  [--no-archive] \
-  [--progress/--no-progress] \
-  [--ffmpeg <path-to-ffmpeg-dir>]
+ytpipe transcribe --audio-dir data/raw/audio --device cuda --compute-type float16
 ```
 
-- **--source, -s**: YouTube video/playlist/channel URL. Repeat to add multiple sources.
-- **--out**: Output base directory for downloads. Audio is saved under `audio/` subfolder.
-- **--max**: Optional limit on total videos processed.
-- **--no-archive**: Don’t use download archive (forces re-downloads). Default uses `downloaded.txt`.
-- **--progress/--no-progress**: Toggle tqdm progress bar.
-- **--ffmpeg**: Path to a directory containing `ffmpeg` (and `ffprobe`) binaries.
-
-Writes:
-- `data/raw/audio/<id>.m4a`
-- `data/raw/audio/<id>.info.json` (per-item metadata from yt-dlp)
-- `data/raw/manifest.jsonl` (one JSON object per encountered item)
-- `data/raw/downloaded.txt` (yt-dlp download archive, if enabled)
-
-
-### transcribe
+### Parallel processing
 
 ```bash
-ytpipe transcribe \
-  --audio-dir data/raw/audio \
-  --out data/transcripts \
-  [--model small|medium|large-v3|<path>] \
-  [--device auto|cuda|cpu] \
-  [--compute-type auto|float16|int8] \
-  [--beam-size 5] \
-  [--vad/--no-vad] \
-  [--language <code>] \
-  [--skip-existing/--no-skip-existing] \
-  [--workers <N>] \
-  [--batch-size <N>]
+# CPU parallel (4 workers)
+ytpipe transcribe --audio-dir data/raw/audio --workers 4
+
+# Multi-GPU
+ytpipe transcribe --audio-dir data/raw/audio --device cuda --workers 2
 ```
-
-- **--audio-dir**: Directory containing audio files to transcribe.
-- **--out**: Where transcript files are written.
-- **--model**: Faster‑Whisper model name or local path (e.g. `small`, `medium`, `large-v3`).
-- **--device**: `auto` picks `cuda` when available; otherwise `cpu`.
-- **--compute-type**: `auto` uses `float16` on CUDA or `int8` on CPU.
-- **--beam-size**: Beam search size.
-- **--vad/--no-vad**: Enable/disable voice activity detection. **Default: enabled** (recommended).
-- **--language**: Language hint (e.g., `en`); leave unset to auto-detect.
-- **--skip-existing**: Skip files with both `.json` and `.txt` already present.
-- **--workers, -w**: Number of parallel workers. Auto-detects optimal value if not specified.
-- **--batch-size, -b**: Number of files to process in parallel (per worker). Default: 1.
-
-Writes, per audio `<id>`:
-- `data/transcripts/<id>.json` (metadata + segments)
-- `data/transcripts/<id>.txt` (plain concatenated text)
-
-Transcript JSON shape (simplified):
-
-```json
-{
-  "video_id": "2FkMfgNNlZ8",
-  "source_url": "https://www.youtube.com/watch?v=2FkMfgNNlZ8",
-  "model": "medium",
-  "device": "cpu",
-  "compute_type": "int8",
-  "duration": 123.45,
-  "language": "en",
-  "segments": [
-    { "start": 0.0, "end": 2.34, "text": "Hello world" }
-  ]
-}
-```
-
-
-### pipeline
-
-```bash
-ytpipe pipeline \
-  --source <url> [-s <url> ...] \
-  --out data \
-  [--max <N>] [--no-archive] [--progress/--no-progress] [--ffmpeg <dir>] \
-  [--model <name|path>] [--device <auto|cuda|cpu>] [--compute-type <...>] \
-  [--beam-size <int>] [--vad/--no-vad] [--language <code>] \
-  [--skip-existing/--no-skip-existing]
-```
-
-Convenience command that downloads to `<out>/raw` and transcribes to `<out>/transcripts`.
-
 
 ## Python API
-
-You can use the same pipeline programmatically:
 
 ```python
 from pathlib import Path
@@ -188,86 +122,28 @@ from ytpipe import (
     TranscriptionConfig,
     download_sources,
     transcribe_directory,
-    setup_logging,
 )
 
-setup_logging(verbose=True)
-
-# 1) Download
-raw_dir = Path("data/raw")
+# Download
 items = download_sources(
-    sources=["https://www.youtube.com/playlist?list=PL123..."],
-    config=DownloadConfig(
-        out_dir=raw_dir,
-        max_videos=10,
-        use_archive=True,
-        show_progress=True,
-    ),
+    sources=["https://www.youtube.com/watch?v=VIDEO_ID"],
+    config=DownloadConfig(out_dir=Path("data/raw")),
 )
 
-# 2) Transcribe
+# Transcribe
 results = transcribe_directory(
-    audio_dir=raw_dir / "audio",
+    audio_dir=Path("data/raw/audio"),
     out_dir=Path("data/transcripts"),
-    config=TranscriptionConfig(
-        model="medium",
-        device="auto",
-        compute_type="auto",
-        beam_size=5,
-        vad_filter=True,
-        language="en",
-        skip_existing=True,
-    ),
+    config=TranscriptionConfig(model="medium"),
 )
 ```
-
-
-## Notes and Tips
-
-- **Voice Activity Detection (VAD)** is enabled by default and provides:
-  - 20-30% faster transcription by skipping silence
-  - Fewer hallucinations in quiet segments
-  - Better timestamp accuracy
-  - See [VAD_OPTIMIZATION.md](VAD_OPTIMIZATION.md) for tuning parameters
-- **Parallel processing** for large batches:
-  - Use `--workers 4` for CPU multi-processing (4 cores)
-  - Use `--workers 2` with `--device cuda` for multi-GPU (2 GPUs)
-  - See [BATCH_PROCESSING.md](BATCH_PROCESSING.md) for details
-- For faster transcriptions, use an NVIDIA GPU (`--device cuda`) and pick an appropriate `--model`/`--compute-type` (e.g., `float16`).
-- On CPU-only systems, `--compute-type int8` (default via `auto`) significantly reduces memory usage.
-- You can limit the number of processed items with `--max` during `download`/`pipeline` runs.
-
 
 ## Troubleshooting
 
-- **ffmpeg not found**:
-  - Install ffmpeg and ensure it is on your `PATH`, or pass `--ffmpeg <dir>` where `ffmpeg.exe` (and `ffprobe`) live.
-  - Windows (example): install from the official site or package managers (e.g., `choco install ffmpeg`), then restart your shell.
-
-- **GPU not detected**:
-  - `--device auto` checks for `nvidia-smi`. Make sure the NVIDIA driver is installed and `nvidia-smi` works in your shell. Otherwise it falls back to `cpu`.
-
-- **Rate limiting / restricted videos**:
-  - Consider fewer parallel downloads or re-running later. For age/region-restricted content you may need authentication/cookies. The CLI does not expose cookie options; from Python you can pass extra yt-dlp options via `DownloadConfig.ydl_extra_opts`.
-
-
-## Development
-
-- Install dev tools:
-
-```bash
-python -m pip install -e ".[dev]"
-```
-
-- Recommended:
-  - Lint: `ruff`
-  - Format: `black`
-  - Types: `mypy`
-  - Tests: `pytest`
-
+- **FFmpeg not found**: Install FFmpeg and add to PATH, or use `--ffmpeg /path/to/ffmpeg`
+- **GPU not detected**: Ensure NVIDIA drivers are installed and `nvidia-smi` works
+- **DLL errors on Windows**: Use `--device cpu` (default) to avoid CUDA dependencies
 
 ## License
 
-MIT License. See the license metadata in `pyproject.toml`.
-
-
+MIT License

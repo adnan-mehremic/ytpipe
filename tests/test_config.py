@@ -110,7 +110,7 @@ class TestTranscriptionConfig:
         config = TranscriptionConfig()
 
         assert config.model == "medium"
-        assert config.device == "auto"
+        assert config.device == "cpu"
         assert config.compute_type == "auto"
         assert config.beam_size == 5
         assert config.vad_filter is True  # VAD enabled by default (recommended)

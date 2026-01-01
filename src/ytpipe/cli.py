@@ -114,9 +114,9 @@ def transcribe(
         help="Whisper model size or path (e.g. small, medium, large-v3).",
     ),
     device: str = typer.Option(
-        "auto",
+        "cpu",
         "--device",
-        help='Device selection: "auto", "cuda", or "cpu".',
+        help='Device selection: "auto", "cuda", or "cpu". Default: cpu.',
     ),
     compute_type: str = typer.Option(
         "auto",
@@ -250,9 +250,9 @@ def pipeline(
         help="Whisper model size or path (e.g. small, medium, large-v3).",
     ),
     device: str = typer.Option(
-        "auto",
+        "cpu",
         "--device",
-        help='Device selection: "auto", "cuda", or "cpu".',
+        help='Device selection: "auto", "cuda", or "cpu". Default: cpu.',
     ),
     compute_type: str = typer.Option(
         "auto",
