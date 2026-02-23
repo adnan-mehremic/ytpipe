@@ -52,7 +52,12 @@ full = ["static-ffmpeg>=2.5"]
 
 gpu = [
   "nvidia-cudnn-cu12>=9.0.0",
-  "nvidia-cublas-cu12>=12.0.0" 
+  "nvidia-cublas-cu12>=12.0.0"
+]
+
+llm = [
+  "openai>=1.0.0",
+  "python-dotenv>=1.0.0",
 ]
 [tool.pytest.ini_options]
 filterwarnings = [

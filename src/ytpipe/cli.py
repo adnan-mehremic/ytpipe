@@ -7,6 +7,13 @@ from typing import List, Optional
 
 import typer
 
+# Load .env file early, before typer parses arguments
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from .config import DownloadConfig, TranscriptionConfig, setup_logging
 from .download import download_sources
 
@@ -66,6 +73,11 @@ def download(
         "--ffmpeg",
         help="Path to ffmpeg/ffprobe binary directory (optional).",
     ),
+    cookies: Optional[Path] = typer.Option(
+        None,
+        "--cookies",
+        help="Path to cookies.txt file for authenticated downloads.",
+    ),
 ) -> None:
     """
     Download audio from YouTube sources into m4a files + manifest.
@@ -76,6 +88,7 @@ def download(
         use_archive=not no_archive,
         show_progress=progress,
         ffmpeg_path=ffmpeg,
+        cookies_file=cookies,
     )
 
     items = download_sources(source, cfg)
@@ -244,6 +257,11 @@ def pipeline(
         "--ffmpeg",
         help="Path to ffmpeg/ffprobe binary directory (optional).",
     ),
+    cookies: Optional[Path] = typer.Option(
+        None,
+        "--cookies",
+        help="Path to cookies.txt file for authenticated downloads.",
+    ),
     model: str = typer.Option(
         "medium",
         "--model",
@@ -317,6 +335,7 @@ def pipeline(
         use_archive=not no_archive,
         show_progress=progress,
         ffmpeg_path=ffmpeg,
+        cookies_file=cookies,
     )
 
     items = download_sources(source, download_cfg)
@@ -349,3 +368,204 @@ def pipeline(
         config=trans_cfg,
     )
     typer.echo(f"Transcribed {len(results)} new file(s).")
+
+
+@app.command()
+def proofread(
+    input_paths: List[Path] = typer.Argument(
+        ...,
+        help="Input file(s) (.txt or .srt) or directory containing transcripts.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (only valid for single file input).",
+    ),
+    language: str = typer.Option(
+        "Bosnian",
+        "--language",
+        "-l",
+        help="Source language of the transcript.",
+    ),
+    model: str = typer.Option(
+        "gpt-4o",
+        "--model",
+        "-m",
+        help="OpenAI model to use.",
+    ),
+    api_key: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        envvar="OPENAI_API_KEY",
+        help="OpenAI API key. Can also be set via OPENAI_API_KEY env variable.",
+    ),
+) -> None:
+    """
+    Proofread and correct transcription using LLM.
+
+    Fixes grammar errors, misheard words, punctuation, and formatting
+    while preserving the original meaning.
+
+    Examples:
+        # Proofread a single file
+        ytpipe proofread data/transcripts/video.txt
+
+        # Proofread multiple files
+        ytpipe proofread file1.srt file2.srt file3.srt
+
+        # Proofread SRT file (preserves timestamps)
+        ytpipe proofread data/transcripts/video.srt
+
+        # Proofread all files in directory
+        ytpipe proofread data/transcripts/
+
+        # Specify language
+        ytpipe proofread data/transcripts/video.txt --language Serbian
+    """
+    try:
+        from .llm_postprocess import LLMConfig, process_file, process_transcript_directory
+    except ImportError:
+        typer.echo(
+            "Error: OpenAI package required. Install with: pip install ytpipe[llm]",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        config = LLMConfig(api_key=api_key, model=model)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    if output and len(input_paths) > 1:
+        typer.echo("Error: --output can only be used with a single input file.", err=True)
+        raise typer.Exit(1)
+
+    total_processed = 0
+    for input_path in input_paths:
+        input_path = Path(input_path)
+
+        if input_path.is_dir():
+            results = process_transcript_directory(
+                input_path,
+                operation="proofread",
+                config=config,
+                source_language=language,
+            )
+            total_processed += len(results)
+        else:
+            process_file(
+                input_path,
+                output_path=output,
+                operation="proofread",
+                config=config,
+                source_language=language,
+            )
+            total_processed += 1
+
+    typer.echo(f"Proofread {total_processed} file(s).")
+
+
+@app.command()
+def translate(
+    input_paths: List[Path] = typer.Argument(
+        ...,
+        help="Input file(s) (.txt or .srt) or directory containing transcripts.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (only valid for single file input).",
+    ),
+    source_language: str = typer.Option(
+        "Bosnian",
+        "--source",
+        "-s",
+        help="Source language of the transcript.",
+    ),
+    target_language: str = typer.Option(
+        "English",
+        "--target",
+        "-t",
+        help="Target language for translation.",
+    ),
+    model: str = typer.Option(
+        "gpt-4o",
+        "--model",
+        "-m",
+        help="OpenAI model to use.",
+    ),
+    api_key: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        envvar="OPENAI_API_KEY",
+        help="OpenAI API key. Can also be set via OPENAI_API_KEY env variable.",
+    ),
+) -> None:
+    """
+    Translate transcription to another language using LLM.
+
+    Preserves subtitle format (SRT/VTT) with timestamps intact.
+
+    Examples:
+        # Translate to English (default)
+        ytpipe translate data/transcripts/video.txt
+
+        # Translate multiple files
+        ytpipe translate file1.srt file2.srt file3.srt
+
+        # Translate SRT file (preserves timestamps)
+        ytpipe translate data/transcripts/video.srt
+
+        # Translate to German
+        ytpipe translate data/transcripts/video.txt --target German
+
+        # Translate all files in directory
+        ytpipe translate data/transcripts/
+    """
+    try:
+        from .llm_postprocess import LLMConfig, process_file, process_transcript_directory
+    except ImportError:
+        typer.echo(
+            "Error: OpenAI package required. Install with: pip install ytpipe[llm]",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        config = LLMConfig(api_key=api_key, model=model)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    if output and len(input_paths) > 1:
+        typer.echo("Error: --output can only be used with a single input file.", err=True)
+        raise typer.Exit(1)
+
+    total_processed = 0
+    for input_path in input_paths:
+        input_path = Path(input_path)
+
+        if input_path.is_dir():
+            results = process_transcript_directory(
+                input_path,
+                operation="translate",
+                config=config,
+                source_language=source_language,
+                target_language=target_language,
+            )
+            total_processed += len(results)
+        else:
+            process_file(
+                input_path,
+                output_path=output,
+                operation="translate",
+                config=config,
+                source_language=source_language,
+                target_language=target_language,
+            )
+            total_processed += 1
+
+    typer.echo(f"Translated {total_processed} file(s).")

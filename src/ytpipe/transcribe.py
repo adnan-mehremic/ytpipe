@@ -265,6 +265,9 @@ def transcribe_file(
         vad_parameters=vad_parameters,
         beam_size=config.beam_size,
         word_timestamps=False,
+        condition_on_previous_text=False,  # Reduces repetition/hallucination
+        no_speech_threshold=0.6,  # Higher threshold to filter non-speech
+        compression_ratio_threshold=2.4,  # Filter repetitive segments
     )
 
     segments: list[Segment] = []

@@ -30,6 +30,7 @@ class DownloadConfig:
     manifest_filename: str = "manifest.jsonl"
     archive_filename: str = "downloaded.txt"
 
+    cookies_file: Path | None = None
     extractor_args: dict[str, Any] | None = None
     ydl_extra_opts: dict[str, Any] = field(default_factory=dict)
 
@@ -84,7 +85,6 @@ def get_default_vad_parameters() -> dict[str, Any]:
     - min_speech_duration_ms: Minimum duration to consider as speech.
     - max_speech_duration_s: Maximum duration before splitting segment.
     - min_silence_duration_ms: Minimum silence to split segments.
-    - window_size_samples: VAD window size (don't change unless you know what you're doing).
     - speech_pad_ms: Padding added to speech segments (helps avoid cutting words).
 
     Examples
@@ -98,7 +98,6 @@ def get_default_vad_parameters() -> dict[str, Any]:
         "min_speech_duration_ms": 250,
         "max_speech_duration_s": float("inf"),
         "min_silence_duration_ms": 2000,
-        "window_size_samples": 1024,
         "speech_pad_ms": 400,
     }
 
@@ -157,12 +156,6 @@ def validate_vad_parameters(params: dict[str, Any]) -> dict[str, Any]:
     if validated["min_silence_duration_ms"] < 0:
         raise ValueError(
             f"min_silence_duration_ms must be non-negative, got {validated['min_silence_duration_ms']}"
-        )
-
-    window_size = validated["window_size_samples"]
-    if window_size <= 0 or (window_size & (window_size - 1)) != 0:
-        raise ValueError(
-            f"window_size_samples must be a positive power of 2, got {window_size}"
         )
 
     if validated["speech_pad_ms"] < 0:

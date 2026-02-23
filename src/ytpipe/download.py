@@ -169,8 +169,8 @@ def download_sources(
 
     ydl_opts: Dict[str, Any] = {
         "format": "bestaudio/best",
-        "outtmpl": str(audio_dir / "%(id)s.%(ext)s"),
-        "restrictfilenames": True,
+        "outtmpl": str(audio_dir / "%(title)s.%(ext)s"),
+        "restrictfilenames": False,
         "noplaylist": False,
         "ignoreerrors": True,
         "quiet": True,  # tqdm + logging instead
@@ -186,6 +186,8 @@ def download_sources(
         ],
     }
 
+    if config.cookies_file is not None:
+        ydl_opts["cookiefile"] = str(config.cookies_file)
     if config.use_archive:
         ydl_opts["download_archive"] = str(archive_path)
     if config.ffmpeg_path is not None:
